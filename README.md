@@ -1,4 +1,4 @@
-# t3-message-parser
+# t3code-message-parser
 
 A small command-line prototype for going back through my chats in a cleaner way.
 
