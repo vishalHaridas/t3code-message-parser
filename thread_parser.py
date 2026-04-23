@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
+import shutil
 import re
 import sqlite3
 import subprocess
@@ -112,6 +113,19 @@ def clean_text(value):
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def terminal_width():
+    return max(72, shutil.get_terminal_size(fallback=(100, 24)).columns)
+
+
+def fit_line(value, max_chars):
+    text = clean_text(value)
+    if len(text) <= max_chars:
+        return text
+    if max_chars <= 3:
+        return "." * max_chars
+    return text[: max_chars - 3].rstrip() + "..."
+
+
 def snippet(value, max_chars=100):
     # Data flow: message text becomes a compact preview for the selection screen.
     text = clean_text(value)
@@ -189,20 +203,29 @@ def load_threads(conn, project_id):
 
 
 def print_thread_list(threads):
+    width = terminal_width()
+    separator = "-" * min(width, 120)
+
     print()
     print(f"Threads ({len(threads)}):")
     print("Selection examples: 3  |  1,4,9  |  2-10,!5,!7  |  all")
     print()
     for index, thread in enumerate(threads, start=1):
         archived = " archived" if thread["archived_at"] else ""
-        print(f"[{index}] {thread['title']}{archived}")
-        print(
-            f"    created {format_date(thread['created_at'])} | "
+        title_prefix = f"[{index}] "
+        title = fit_line(f"{thread['title']}{archived}", width - len(title_prefix))
+        meta = (
+            f"created {format_date(thread['created_at'])} | "
             f"updated {format_date(thread['updated_at'])} | "
             f"messages {thread['message_count']}"
         )
-        print(f"    user {format_date(thread['last_user_at'])}: {snippet(thread['last_user_text'])}")
-        print()
+        user_prefix = f"user {format_date(thread['last_user_at'])}: "
+        user = snippet(thread["last_user_text"], max_chars=min(100, max(24, width - len(user_prefix) - 4)))
+
+        print(f"{title_prefix}{title}")
+        print(f"  {fit_line(meta, width - 2)}")
+        print(f"  {user_prefix}{user}")
+        print(separator)
 
 
 def parse_selection(raw, count):
