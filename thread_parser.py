@@ -318,10 +318,10 @@ def main():
     )
     parser.add_argument("--db", default=str(DEFAULT_DB), help=f"SQLite DB path. Default: {DEFAULT_DB}")
     parser.add_argument("--out", default=None, help="Output directory. Default: ./thread-exports")
-    parser.add_argument("--selection", default=None, help="Non-interactive selection, e.g. 2-10,!5,!7")
+    parser.add_argument("--wd", default=None, help="Directory to match against T3 projects. Default: current directory")
     args = parser.parse_args()
 
-    cwd = Path.cwd()
+    cwd = Path(args.wd).expanduser().resolve() if args.wd else Path.cwd()
     conn = connect_readonly(Path(args.db))
     projects = load_projects(conn)
     matches, candidates = find_project_for_cwd(projects, cwd)
@@ -348,14 +348,12 @@ def main():
     print_thread_list(threads)
 
     while True:
-        raw = args.selection if args.selection is not None else input("Select threads to export: ")
+        raw = input("Select threads to export: ")
         try:
             selected_indexes = parse_selection(raw, len(threads))
             break
         except ValueError as error:
             print(f"Selection error: {error}")
-            if args.selection is not None:
-                return 1
 
     selected_threads = [threads[index - 1] for index in selected_indexes]
     messages_by_thread = {}
