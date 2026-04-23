@@ -99,27 +99,31 @@ def find_project_for_cwd(projects, cwd):
 def format_date(value):
     if not value:
         return "-"
-    cleaned = value.replace("T", " ").replace("Z", "")
-    return cleaned[:19]
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        cleaned = value.replace("T", " ").replace("Z", "")
+        return cleaned[:16]
+    return parsed.strftime("%d %b %Y, %H:%M")
 
 
 def clean_text(value):
     return re.sub(r"\s+", " ", value or "").strip()
 
 
-def snippet(value, max_chars=220):
+def snippet(value, max_chars=100):
     # Data flow: message text becomes a compact preview for the selection screen.
     text = clean_text(value)
     if not text:
         return "-"
 
-    sentences = re.split(r"(?<=[.!?])\s+", text)
-    preview = " ".join(sentences[:2]).strip()
-    if not preview:
-        preview = text
-    if len(preview) > max_chars:
-        preview = preview[: max_chars - 1].rstrip() + "..."
-    return preview
+    if len(text) <= max_chars:
+        return text
+
+    keep = max_chars - 3
+    head_len = keep // 2
+    tail_len = keep - head_len
+    return text[:head_len].rstrip() + "..." + text[-tail_len:].lstrip()
 
 
 def load_threads(conn, project_id):
@@ -196,14 +200,7 @@ def print_thread_list(threads):
             f"updated {format_date(thread['updated_at'])} | "
             f"messages {thread['message_count']}"
         )
-        print(
-            f"    user      {format_date(thread['last_user_at'])}: "
-            f"{snippet(thread['last_user_text'])}"
-        )
-        print(
-            f"    assistant {format_date(thread['last_assistant_at'])}: "
-            f"{snippet(thread['last_assistant_text'])}"
-        )
+        print(f"    user {format_date(thread['last_user_at'])}: {snippet(thread['last_user_text'])}")
         print()
 
 
