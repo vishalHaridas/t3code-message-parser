@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 DEFAULT_DB = Path.home() / ".t3" / "userdata" / "state.sqlite"
+DEFAULT_EXPORTS_DIR = DEFAULT_DB.parent / "exports"
 
 
 def run_git(args, cwd):
@@ -309,12 +310,19 @@ def build_markdown(project, selected_threads, messages_by_thread):
     return "\n".join(lines).rstrip() + "\n"
 
 
+def open_in_explorer(path):
+    try:
+        subprocess.run(["explorer", str(path)], check=False)
+    except FileNotFoundError:
+        print(f"Could not open Explorer for: {path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Ugly prototype: export T3 project threads from the local SQLite state DB."
     )
     parser.add_argument("--db", default=str(DEFAULT_DB), help=f"SQLite DB path. Default: {DEFAULT_DB}")
-    parser.add_argument("--out", default=None, help="Output directory. Default: ./thread-exports")
+    parser.add_argument("--out", default=None, help=f"Output directory. Default: {DEFAULT_EXPORTS_DIR}")
     parser.add_argument("--wd", default=None, help="Directory to match against T3 projects. Default: current directory")
     args = parser.parse_args()
 
@@ -357,15 +365,16 @@ def main():
     for thread in selected_threads:
         messages_by_thread[thread["thread_id"]] = load_messages(conn, thread["thread_id"])
 
-    out_dir = Path(args.out) if args.out else cwd / "thread-exports"
+    out_dir = Path(args.out) if args.out else DEFAULT_EXPORTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_path = out_dir / f"{slugify(project['title'])}-threads-{stamp}.md"
+    stamp = dt.datetime.now().strftime("%Y-%m-%d")
+    out_path = out_dir / f"{stamp}-{slugify(project['title'])}-threads-parsed.md"
     out_path.write_text(build_markdown(project, selected_threads, messages_by_thread), encoding="utf-8")
 
     print()
     print(f"Exported {len(selected_threads)} thread(s) to:")
     print(out_path)
+    open_in_explorer(out_dir)
     return 0
 
 
