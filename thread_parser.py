@@ -148,6 +148,8 @@ def load_threads(conn, project_id):
         SELECT
           t.thread_id,
           t.title,
+          t.branch,
+          t.worktree_path,
           t.created_at,
           t.updated_at,
           t.archived_at,
@@ -213,7 +215,11 @@ def print_thread_list(threads):
     for index, thread in enumerate(threads, start=1):
         archived = " archived" if thread["archived_at"] else ""
         title_prefix = f"[{index}] "
-        title = fit_line(f"{thread['title']}{archived}", width - len(title_prefix))
+        branch = thread["branch"] or "-"
+        worktree = thread["worktree_path"] or "-"
+        worktree_label = "yes" if thread["worktree_path"] else "no"
+        title_suffix = f" | branch {branch} | worktree {worktree_label}"
+        title = fit_line(f"{thread['title']}{archived}{title_suffix}", width - len(title_prefix))
         meta = (
             f"created {format_date(thread['created_at'])} | "
             f"updated {format_date(thread['updated_at'])} | "
@@ -224,6 +230,8 @@ def print_thread_list(threads):
 
         print(f"{title_prefix}{title}")
         print(f"  {fit_line(meta, width - 2)}")
+        if worktree != "-":
+            print(f"  worktree path: {fit_line(worktree, width - 16)}")
         print(f"  {user_prefix}{user}")
         print(separator)
 
